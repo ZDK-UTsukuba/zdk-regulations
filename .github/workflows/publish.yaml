@@ -1,0 +1,61 @@
+name: publish
+run-name: publish
+
+permissions:
+  contents: read
+  packages: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: collect
+        run: |
+          mkdir -p input
+          cp \
+            ./bylaw-account/bylaw-account.md \
+            ./agreement/welcoming/README.md \
+            ./bylaw-master/bylaw-master.md \
+            ./bylaw-welcoming/bylaw-welcoming.md \
+            ./input/
+
+      - name: build
+        uses: docker://ghcr.io/ZDK-UTsukuba/regulations-generator:latest
+        with:
+          args: gen --title "全学学類・専門学群・総合学域群代表者会議 内規" --description "全学学類・専門学群・総合学域群代表者会議 (全代会) の内規です。
+            リポジトリ:https://github.com/ZDK-UTsukuba/zdk-regulations
+            変換:https://github.com/ZDK-UTsukuba/regulations-generator" -b "https://zdk-utsukuba.github.io/reg-tests/" -a ./input ./output
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: './output'
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      pages: write
+
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v5
